@@ -1,0 +1,416 @@
+<!--
+
+    
+  NOTES:
+
+
+  All Children belong to the scene of their parent
+
+
+  COLOR SCHEME:
+
+  Primary Color:
+  FF6C00	BF6D30	A64600	FF9140	FFAE73
+
+  Secondary Color A:
+  FFAB00	BF9030	A66F00	FFC040	FFD173
+
+  Secondary Color B:
+  F10026	B52D43	9D0019	F83E5B	F87085
+
+  Complementary Color:
+  009E8E	1E776D	00675C	34CFBE	5DCFC3
+
+
+
+-->
+
+
+
+<html>
+
+  <title> CABBIBO </title>
+  <head>
+    <link href="/allSiteLib/main.css" rel="stylesheet"/>
+    <link href="infoDiv.css" rel="stylesheet"/>
+    <script src ="/allSiteLib/jquery-1.7.1.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js"></script>
+		<link href="/allSiteLib/jquery-ui-1.9.1.custom/css/theme1/jquery-ui-1.9.1.custom.css" rel="stylesheet" type="text/css"/>
+
+    <script src ="/allSiteLib/stats.min.js"></script>
+   
+  </head>
+
+  <body>
+
+
+        <!--DIV FOR BROWSER COMPATIBILITY-->
+  <div id="dialog" title="Browser Incompatibility" style="display:none;">
+    <div id="dialogBody">Your browser is missing the following:<br/></div>
+    <br/>
+    <div id="dialogLinks">
+      <a href="http://cabbibo.com/">Take me home.</a><br/><br/>     
+    </div>
+  </div>
+
+
+  <div id="container" style="position:absolute;top:0px;left:0px;background:#000"></div>
+
+  <div id="mainInfoDiv"></div>
+  <p></p>
+  <div id="hoverInfoDiv"></div>
+  
+  </body>
+
+  <script src ="/allSiteLib/js/compatibility.js"></script>
+
+
+  <script src="/allSiteLib/threeBuild/build/three.min.js"></script>
+  <script src="/allSiteLib/threeBuild/src/extras/core/Curve.js"></script>
+  <script src="/allSiteLib/threeBuild/src/extras/geometries/TubeGeometry.js"></script>
+  <script src="/allSiteLib/threeBuild/src/extras/geometries/ExtrudeGeometry.js"></script>
+  <script src="/allSiteLib/threeBuild/examples/js/controls/TrackballControls.js"></script>
+  <script src="/allSiteLib/OrbitControlsY.js"></script>
+  <script src="/allSiteLib/Tween.js"></script>
+
+  <script src="/allSiteLib/AUDIO.js"></script>
+
+  <script src = "applications.js"></script>
+  <script src = "utils.js"></script>
+  
+  <script src = "APPLICATION.js"></script>
+  <script src = "FAERIE.js"></script>
+  <script src = "CONNECTION.js"></script>
+  <script src = "TUBE.js"></script>
+  <script src = "NODE.js"></script>
+  <script src = "animate.js"></script>
+  <script src = "colors.js"></script>
+
+
+  <script>
+
+
+    // SS = Scene Size
+    var SS = 1000;
+
+    var startingCameraPosition = SS * 2;
+
+    var techsNeeded = [ 'webGL' , 'webkit' ];
+    detect( techsNeeded );
+
+    // Global objects for intersection
+    var I_MESH , I_OBJ , I_APP;
+
+    var CURRENT_APP;
+
+    // gets a target for the fairies to flock around
+    var CURRENT_FAIRIE_TARGET = new THREE.Vector3( 0 , 0 , 0);
+
+
+    // This is the amount we will reduce the range 
+    // for the children positioning function
+    // every level. The higher the number, the more
+    // closely packed the different nodes will be
+    var SIZE_REDUCTION_FACTOR = 1;
+
+    // Top most app
+    var cabbibo;
+
+    var mainInfoDiv = $("#mainInfoDiv");
+    var hoverInfoDiv = $("#hoverInfoDiv");
+
+    // Used to start and stop rendering
+    var requestId;
+
+    var scene, camera,controls, clock, renderer, stats, projector, raycaster;
+
+    var ambientLight, pointLight;
+    
+    var floor;
+
+    var connectionMaterials = {
+
+      regular:new THREE.MeshBasicMaterial({color:colors.complementary.bright}),
+      hover:new THREE.MeshBasicMaterial({color:colors.secondaryA.bright}),
+      parentHover: new THREE.MeshBasicMaterial({color:colors.secondaryA.light}),
+      select:new THREE.MeshBasicMaterial({color:colors.secondaryB.bright}),
+      parentSelect: new THREE.MeshBasicMaterial({color:colors.secondaryB.light}),
+
+
+    }
+
+    var nodeMaterials = {
+
+      regular:new THREE.MeshBasicMaterial({color:colors.complementary.bold}),
+      hover:new THREE.MeshBasicMaterial({color:colors.secondaryA.bold}),
+      parentHover: new THREE.MeshBasicMaterial({color:colors.secondaryA.dark}),
+      select:new THREE.MeshBasicMaterial({color:colors.secondaryB.bold}),
+      parentSelect: new THREE.MeshBasicMaterial({color:colors.secondaryB.dark}),
+
+    }
+
+
+    var normalMaterialWire = new THREE.MeshNormalMaterial({wireframe:true});
+    var normalMaterial = new THREE.MeshNormalMaterial();
+    
+    var sceneMarkerGeometry = new THREE.SphereGeometry( SS / 500 , 5 ,5 );
+
+    var ROTATION_SPEED = 0;
+    var ROTATION_DRAG = .95;
+
+    var mouse = {
+      down: false,
+      dragging: false,
+      position: new THREE.Vector2(),
+      oPosition: new THREE.Vector2(),
+      speed: new THREE.Vector2(),
+      screen: new THREE.Vector2()
+    }
+    var intersectedObject;
+
+    var akira , cabbibo;
+
+    var theta = 0;
+
+    init();	
+    function init(){
+
+
+      clock = new THREE.Clock();
+      
+      camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, SS / 1000 , SS * 20);
+      camera.position.z = startingCameraPosition;
+
+      scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2( 0x00000, 0.00055 );
+      scene.add(ambientLight);
+
+      projector = new THREE.Projector();
+      raycaster = new THREE.Raycaster();
+
+      
+      akira = {
+        scene:new THREE.Object3D(),
+        level:0
+      }
+
+      scene.add(akira.scene);
+
+      akira.childScene = new THREE.Object3D();
+      akira.scene.add( akira.childScene );
+
+      akira.scene.position.y = - SS/2;
+
+      ambientLight = new THREE.AmbientLight(0x430303);
+      scene.add( ambientLight );
+      pointLight = new THREE.PointLight(0xffffff , 1, SS*3 );
+      pointLight.position.x = SS/10;
+      scene.add(pointLight);
+
+
+      var floorMap = THREE.ImageUtils.loadTexture( "images/floor.png" );
+
+      var floorMat = new THREE.MeshLambertMaterial({map:floorMap, color:colors.complementary.dim});
+
+      floorMat.transparent = true;
+
+      var floorGeo = new THREE.PlaneGeometry( SS * 1.5 , SS * 1.5 , 20 , 20 );
+      
+      floor = new THREE.Mesh( floorGeo , floorMat);
+      floor.data = floorGeo.clone();
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = 2 ;
+
+      akira.scene.add( floor );
+
+
+      var startingPosition = new THREE.Vector3( 0 , 0 , 0 );
+
+
+      for( var i = 0 ; i < 5; i ++){
+
+        var x = Math.randomRange( SS/2 );
+        var y = Math.randomRange( SS/2 );
+        var z = Math.randomRange( SS/2 );
+
+        var position = new THREE.Vector3(x,y,z);
+        var faerie = new FAERIE( colors.randomLight() , position);
+        scene.add( faerie.scene );
+
+      }
+
+
+      cabbibo = new APPLICATION( akira.childScene , cabbiboParams , akira , startingPosition );
+
+      cabbibo.assignAsCurrentApp();
+
+      container = document.getElementById( 'container' );
+	  
+      renderer = new THREE.WebGLRenderer( { antialias: true, clearColor:0x000000 } );
+	  renderer.setSize( window.innerWidth, window.innerHeight );
+
+      container.appendChild( renderer.domElement );
+
+      stats = new Stats();
+      stats.domElement.style.position = 'absolute';
+      stats.domElement.style.top = '0px';
+      container.appendChild( stats.domElement );
+
+     
+    }
+
+    
+    function BEGIN(){
+
+      window.addEventListener( 'resize', onWindowResize, false );
+      window.addEventListener( 'mousemove', onMouseMove, false );
+      window.addEventListener( 'mouseup', onMouseUp, false );
+      window.addEventListener( 'mousedown', onMouseDown, false );
+
+      animationLoop();
+
+
+    }
+
+
+    function onMouseDown( event ){
+      mouse.down = true;
+    }
+
+    function onMouseUp( event ){
+
+
+      var newX =  ( event.clientX / window.innerWidth ) * 2 - 1;
+      var newY =  - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+
+      if( !mouse.dragging ){
+
+        if( I_APP ){
+          
+          I_APP.focus(I_APP);
+        
+        // Return the Camera to OG position
+        }else{
+          returnCameraToStartingPosition();
+        }
+      }
+
+
+      mouse.down = false;
+      mouse.dragging = false;
+
+    }
+
+
+
+    function onMouseMove( event ) {
+
+      event.preventDefault();
+
+      mouse.screen.x = event.clientX;
+      
+      mouse.screen.y = event.clientY
+
+      var newX =  ( event.clientX / window.innerWidth ) * 2 - 1;
+      var newY =  - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+      mouse.oPosition.copy(mouse.position);
+      mouse.position.x = newX;
+      mouse.position.y = newY;
+
+      // Makes sure that we know we are dragging instead of Clicking
+      if( mouse.down ){
+        mouse.dragging = true;
+        ROTATION_SPEED += (mouse.position.x - mouse.oPosition.x)/5;
+      }
+ 
+    }
+
+    function onWindowResize() {
+
+      windowHalfX = window.innerWidth / 2;
+      windowHalfY = window.innerHeight / 2;
+
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+
+      renderer.setSize( window.innerWidth, window.innerHeight );
+
+    }
+
+    
+    function animationLoop() {
+
+      animate();
+      requestId = window.requestAnimationFrame(animationLoop);
+
+    }
+
+    function stopAnimationLoop() {
+      if (requestId) {
+        cancelAnimationFrame(requestId);
+        requestId = undefined;
+      }
+    }
+
+
+
+    function returnCameraToStartingPosition(){
+
+      TWEEN.removeAll();
+      backToOGMaterials();
+
+      var position = {
+        x:camera.position.x,
+        y:camera.position.y,
+        z:camera.position.z,
+      }
+
+      var target ={
+        x:0,
+        y:0,
+        z:startingCameraPosition
+      }
+
+      console.log( target );
+      var tween = new TWEEN.Tween(position).to(target, 1000);
+      tween.easing(TWEEN.Easing.Exponential.InOut)
+      
+      tween.onUpdate(function(){
+       
+        camera.position.x = position.x;
+        camera.position.y = position.y;
+        camera.position.z = position.z;
+        //camera.lookAt( cabbibo.scene.position );
+        if(position.x == target.x){
+          tweening = false;
+          console.log('tweening done');
+          cabbibo.assignAsCurrentApp();
+        }
+
+      });
+      
+      tween.start();
+
+
+    }
+
+    function backToOGMaterials(){
+
+       for( var i=0 ; i< applications.length; i++){
+
+          var app = applications[i];
+
+          app.node.material = app.node.OGMaterial;
+          app.node.setMaterial( app.node.material );
+
+          app.connection.tube.material = app.connection.tube.OGMaterial;
+          app.connection.tube.setMaterial( app.connection.tube.material );
+
+      }
+
+    }
+
+      </script>
+</html>

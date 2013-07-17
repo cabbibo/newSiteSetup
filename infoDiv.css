@@ -1,0 +1,37 @@
+body{
+
+  color:#fff;
+
+}
+
+#mainInfoDiv{
+
+  width:100px;
+  height:100px;
+  border:1px solid white;
+  display:block;
+  position:absolute;
+  top:0px;
+
+
+}
+
+#hoverInfoDiv{
+
+  width:200px;
+  //height:100px;
+  border:1px solid white;
+  display:block;
+  position:absolute;
+  margin-top:-50px;
+  margin-left:50px;
+  padding-left:10px;
+  //background:#f00;
+  top:0px;
+
+  border:solid 3px transparent;
+  border-left-color:#fff;
+  position:absolute;
+
+
+}
